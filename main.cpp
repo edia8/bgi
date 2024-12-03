@@ -22,93 +22,113 @@ int CAMERA_X = 0;
 int CAMERA_Y = 0;
 bool FULSCREEN = 1;
 
-
 int scale = 100;
 
-void drawAxis() {
-	setcolor(BLACK);
-	line(SCREEN_ORIGIN_X, 0, SCREEN_ORIGIN_X, HEIGHT);
-	line(0, SCREEN_ORIGIN_Y, WIDTH, SCREEN_ORIGIN_Y);
-	for (int i = SCREEN_ORIGIN_X; i < WIDTH; i += scale) {
-		line(i, SCREEN_ORIGIN_Y - 25*scale/100, i, SCREEN_ORIGIN_Y + 25*scale/100);
-	}
-	for (int i = SCREEN_ORIGIN_X; i > 0; i -= scale) {
-		line(i, SCREEN_ORIGIN_Y - 25*scale/100, i, SCREEN_ORIGIN_Y + 25*scale/100);
-	}
-	for (int i = SCREEN_ORIGIN_Y; i < HEIGHT; i += scale) {
-		line(SCREEN_ORIGIN_X - 25*scale/100, i, SCREEN_ORIGIN_X + 25*scale/100, i);
-	}
-	for (int i = SCREEN_ORIGIN_Y; i > 0; i -= scale) {
-		line(SCREEN_ORIGIN_X - 25*scale/100, i, SCREEN_ORIGIN_X + 25*scale/100, i);
-	}
-}
-
 //computarea de functii
-
-double sinFunc(double x) { return sin(x); }
-double cosFunc(double x) { return cos(x); }
-double lnFunc(double x) { return log(x); }
-double sqrtFunc(double x) { return sqrt(x); }
-
-map<string, function<double(double)>> functions = {
-    {"sin", sinFunc},
-    {"cos", cosFunc},
-    {"ln", lnFunc},
-    {"sqrt", sqrtFunc}
-};
 
 bool isOperator(const string& token) {
     return token == "+" || token == "-" || token == "*" || token == "/" || token == "^";
 }
-
 bool isFunction(const string& token) {
-    return functions.find(token) != functions.end();
+    return token == "sin" || token == "cos" || token == "ln" || token == "sqrt";
 }
-
-
+bool isDigit(char c) {
+    return (c - '0' < 10) && (c - '0' >= 0);
+}
+bool isAlpha(char c) {
+    return (c - 'a' >= 0) && (c - 'a' <= 'z' - 'a');
+}
 int precedence(const string& op) {
     if (op == "+" || op == "-") return 1;
     if (op == "*" || op == "/") return 2;
     if (op == "^") return 3;
     return 0;
 }
+double prelucreazaFunctie(string token, double x) {
+    if (token == "sin")
+        return sin(x);
+    else if (token == "cos")
+        return cos(x);
+    else if (token == "ln")
+        return log(x);
+    else if (token == "sqrt")
+        return sqrt(x);
+    else {
+        cout << "Functie invalida\n";
+        return 0;
+    }
+}
 
 vector<string> infixToPostfix(const string& expression) {
-    stack<string> operators;
-    vector<string> output;
-    stringstream ss(expression);
-    string token;
+    stack<string> operators;         // Stivă pentru operatori și funcții
+    vector<string> output;           // Rezultatul în notare postfixată
 
-    while (ss >> token) {
-        if (isdigit(token[0]) || token == "x") {
-            output.push_back(token); // Operanzi
+    int i = 0;
+    while (i < expression.size()) {
+        char c = expression[i];
+
+        if (c == ' ') { // Ignoră spațiile
+            i++;
+            continue;
         }
-        else if (isFunction(token)) {
-            operators.push(token); // Funcții
+
+        if (isDigit(c) || c == '.') { // Este număr
+            string number;
+            while (i < expression.size() && (isDigit(expression[i]) || expression[i] == '.')) {
+                number += expression[i];
+                i++;
+            }
+            output.push_back(number);
         }
-        else if (token == "(") {
-            operators.push(token);
+        else if (isAlpha(c)) { // Este funcție sau variabilă
+            string token;
+            while (i < expression.size() && isAlpha(expression[i])) {
+                token += expression[i];
+                i++;
+            }
+            if (isFunction(token)) {
+                operators.push(token);
+            }
+            else { // Variabilă, cum ar fi `x`
+                output.push_back(token);
+            }
         }
-        else if (token == ")") {
+        else if (c == '(') { // Paranteză deschisă
+            operators.push(string(1, c));
+            i++;
+        }
+        else if (c == ')') { // Paranteză închisă
             while (!operators.empty() && operators.top() != "(") {
                 output.push_back(operators.top());
                 operators.pop();
             }
-            operators.pop(); // Scoate "("
-            if (!operators.empty() && isFunction(operators.top())) {
+            operators.pop(); // Scoate paranteza deschisă
+
+            if (!operators.empty() && isFunction(operators.top())) { // Adaugă funcția dacă există
                 output.push_back(operators.top());
                 operators.pop();
             }
+            i++;
+
         }
-        else if (isOperator(token)) {
-            while (!operators.empty() && precedence(operators.top()) >= precedence(token)) {
+        else if (isOperator(string(1, c))) { // Este operator
+            string op(1, c);
+            while (!operators.empty() &&
+                isOperator(operators.top()) &&
+                ((op == "^" && precedence(op) < precedence(operators.top())) ||
+                    (!(op == "^") && precedence(op) <= precedence(operators.top())))) {
                 output.push_back(operators.top());
                 operators.pop();
             }
-            operators.push(token);
+            operators.push(op);
+            i++;
+        }
+        else {
+            i++; // Avansează pentru orice alt caracter necunoscut
         }
     }
 
+    // Scoate toți operatorii rămași în stivă
     while (!operators.empty()) {
         output.push_back(operators.top());
         operators.pop();
@@ -117,45 +137,69 @@ vector<string> infixToPostfix(const string& expression) {
     return output;
 }
 
-
-double evaluatePostfix(const vector<string>& postfix, double xValue) {
-    stack<double> evalStack;
-
+double evaluareExpresie(const vector<string>& postfix, double xVal) {
+    stack<double> expresieConvertita;
     for (const string& token : postfix) {
-        if (isdigit(token[0])) { // Este număr
-            evalStack.push(stod(token));
+        if (isDigit(token[0]))
+            expresieConvertita.push(stod(token));
+        else if (token == "x")
+            expresieConvertita.push(xVal);
+        else if (isFunction(token)) {
+            double val = expresieConvertita.top();
+            expresieConvertita.pop();
+            expresieConvertita.push(prelucreazaFunctie(token, xVal));
         }
-        else if (token == "x") { // Este variabila x
-            evalStack.push(xValue);
-        }
-        else if (isFunction(token)) { // Este funcție
-            double operand = evalStack.top();
-            evalStack.pop();
-            evalStack.push(functions[token](operand));
-        }
-        else if (isOperator(token)) { // Este operator
-            double right = evalStack.top(); evalStack.pop();
-            double left = evalStack.top(); evalStack.pop();
-            if (token == "+") evalStack.push(left + right);
-            if (token == "-") evalStack.push(left - right);
-            if (token == "*") evalStack.push(left * right);
-            if (token == "/") evalStack.push(left / right);
-            if (token == "^") evalStack.push(pow(left, right));
+        else if (isOperator(token)) {
+            double st = expresieConvertita.top();expresieConvertita.pop();
+            double dr = expresieConvertita.top();expresieConvertita.pop();
+            if (token == "+") expresieConvertita.push(st + dr);
+            if (token == "-") expresieConvertita.push(st - dr);
+            if (token == "*") expresieConvertita.push(st * dr);
+            if (token == "/") expresieConvertita.push(st / dr);
+            if (token == "^") expresieConvertita.push(pow(dr, st));
         }
     }
-
-    return evalStack.top();
+    return expresieConvertita.top();
 }
 
+void drawAxis() {
+    setcolor(BLACK);
+    line(SCREEN_ORIGIN_X, 0, SCREEN_ORIGIN_X, HEIGHT);
+    line(0, SCREEN_ORIGIN_Y, WIDTH, SCREEN_ORIGIN_Y);
+    for (int i = SCREEN_ORIGIN_X; i < WIDTH; i += scale) {
+        line(i, SCREEN_ORIGIN_Y - 25 * scale / 100, i, SCREEN_ORIGIN_Y + 25 * scale / 100);
+    }
+    for (int i = SCREEN_ORIGIN_X; i > 0; i -= scale) {
+        line(i, SCREEN_ORIGIN_Y - 25 * scale / 100, i, SCREEN_ORIGIN_Y + 25 * scale / 100);
+    }
+    for (int i = SCREEN_ORIGIN_Y; i < HEIGHT; i += scale) {
+        line(SCREEN_ORIGIN_X - 25 * scale / 100, i, SCREEN_ORIGIN_X + 25 * scale / 100, i);
+    }
+    for (int i = SCREEN_ORIGIN_Y; i > 0; i -= scale) {
+        line(SCREEN_ORIGIN_X - 25 * scale / 100, i, SCREEN_ORIGIN_X + 25 * scale / 100, i);
+    }
+}
 
 void drawfunction(vector<string> postfix)
 {
     for (double X_POZ = 0;X_POZ < WIDTH;X_POZ+=1) {
-        double Y_POZ = evaluatePostfix(postfix,(X_POZ-WIDTH/2)/WIDTH*(2*WIDTH/scale));
+        double Y_POZ = evaluareExpresie(postfix,(X_POZ-WIDTH/2)/WIDTH*(WIDTH/scale));
         
-        int x = (int)(X_POZ), y = (int)(-Y_POZ*(scale/2));
+        int x = (int)(X_POZ), y = (int)(-Y_POZ*scale);
 
         putpixel(x,y+HEIGHT/2, RED);
+        //cout << x << " " << y << '\n';
+    }
+}
+void drawfunction2(vector<string> postfix)
+{
+    for (double X_POZ = 0;X_POZ < WIDTH;X_POZ += 1) {
+        double Y_POZ = evaluareExpresie(postfix, (X_POZ - WIDTH / 2) / WIDTH * ( WIDTH / scale));
+
+        int x = (int)(X_POZ), y = (int)(-Y_POZ * scale);
+
+        putpixel(x, y + HEIGHT / 2, RED);
+        cout << x << " " << y << '\n';
     }
 }
 
@@ -200,6 +244,8 @@ ORIGIN_Y = SCREEN_ORIGIN_Y+CAMERA_Y;
 ORIGIN_X = SCREEN_ORIGIN_X+CAMERA_X;
 
     fereastra();
+    drawAxis();
+    drawfunction2(postfix);
     do {
         //trecerea ferestrei din windowed in fulscreen
         if (GetKeyState(VK_F11) & 0x8000) {
