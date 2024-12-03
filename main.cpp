@@ -147,16 +147,16 @@ double evaluareExpresie(const vector<string>& postfix, double xVal) {
         else if (isFunction(token)) {
             double val = expresieConvertita.top();
             expresieConvertita.pop();
-            expresieConvertita.push(prelucreazaFunctie(token, xVal));
+            expresieConvertita.push(prelucreazaFunctie(token, val));
         }
         else if (isOperator(token)) {
-            double st = expresieConvertita.top();expresieConvertita.pop();
             double dr = expresieConvertita.top();expresieConvertita.pop();
+            double st = expresieConvertita.top();expresieConvertita.pop();
             if (token == "+") expresieConvertita.push(st + dr);
             if (token == "-") expresieConvertita.push(st - dr);
             if (token == "*") expresieConvertita.push(st * dr);
             if (token == "/") expresieConvertita.push(st / dr);
-            if (token == "^") expresieConvertita.push(pow(dr, st));
+            if (token == "^") expresieConvertita.push(pow(st, dr));
         }
     }
     return expresieConvertita.top();
@@ -164,19 +164,19 @@ double evaluareExpresie(const vector<string>& postfix, double xVal) {
 
 void drawAxis() {
     setcolor(BLACK);
-    line(SCREEN_ORIGIN_X, 0, SCREEN_ORIGIN_X, HEIGHT);
-    line(0, SCREEN_ORIGIN_Y, WIDTH, SCREEN_ORIGIN_Y);
-    for (int i = SCREEN_ORIGIN_X; i < WIDTH; i += scale) {
-        line(i, SCREEN_ORIGIN_Y - 25 * scale / 100, i, SCREEN_ORIGIN_Y + 25 * scale / 100);
+    line(ORIGIN_X, 0, ORIGIN_X, HEIGHT);
+    line(0, ORIGIN_Y, WIDTH, ORIGIN_Y);
+    for (int i = ORIGIN_X; i < WIDTH; i += scale) {
+        line(i, ORIGIN_Y - 25 * scale / 100, i, ORIGIN_Y + 25 * scale / 100);
     }
-    for (int i = SCREEN_ORIGIN_X; i > 0; i -= scale) {
-        line(i, SCREEN_ORIGIN_Y - 25 * scale / 100, i, SCREEN_ORIGIN_Y + 25 * scale / 100);
+    for (int i = ORIGIN_X; i > 0; i -= scale) {
+        line(i, ORIGIN_Y - 25 * scale / 100, i, ORIGIN_Y + 25 * scale / 100);
     }
-    for (int i = SCREEN_ORIGIN_Y; i < HEIGHT; i += scale) {
-        line(SCREEN_ORIGIN_X - 25 * scale / 100, i, SCREEN_ORIGIN_X + 25 * scale / 100, i);
+    for (int i = ORIGIN_Y; i < HEIGHT; i += scale) {
+        line(ORIGIN_X - 25 * scale / 100, i, ORIGIN_X + 25 * scale / 100, i);
     }
-    for (int i = SCREEN_ORIGIN_Y; i > 0; i -= scale) {
-        line(SCREEN_ORIGIN_X - 25 * scale / 100, i, SCREEN_ORIGIN_X + 25 * scale / 100, i);
+    for (int i = ORIGIN_Y; i > 0; i -= scale) {
+        line(ORIGIN_X - 25 * scale / 100, i, ORIGIN_X + 25 * scale / 100, i);
     }
 }
 
@@ -191,7 +191,7 @@ void drawfunction(vector<string> postfix)
         //cout << x << " " << y << '\n';
     }
 }
-void drawfunction2(vector<string> postfix)
+void drawfunction2(vector<string> postfix)//verificarea de valori ale functiei(pt debug)
 {
     for (double X_POZ = 0;X_POZ < WIDTH;X_POZ += 1) {
         double Y_POZ = evaluareExpresie(postfix, (X_POZ - WIDTH / 2) / WIDTH * ( WIDTH / scale));
@@ -240,12 +240,11 @@ getline(cin, expression);
 cout << expression;
 vector<string> postfix = infixToPostfix(expression);
 
-ORIGIN_Y = SCREEN_ORIGIN_Y+CAMERA_Y;
-ORIGIN_X = SCREEN_ORIGIN_X+CAMERA_X;
+
 
     fereastra();
     drawAxis();
-    drawfunction2(postfix);
+   // drawfunction2(postfix);
     do {
         //trecerea ferestrei din windowed in fulscreen
         if (GetKeyState(VK_F11) & 0x8000) {
@@ -256,7 +255,8 @@ ORIGIN_X = SCREEN_ORIGIN_X+CAMERA_X;
 		setvisualpage(1 - aP);
         cleardevice();
         setbkcolor(WHITE);
-        
+        SCREEN_ORIGIN_Y = ORIGIN_Y + CAMERA_Y;
+        SCREEN_ORIGIN_X = ORIGIN_X + CAMERA_X;
 		drawAxis();
         drawfunction(postfix);
         if (GetKeyState(VK_OEM_PLUS) & 0x8000) {
@@ -273,6 +273,8 @@ ORIGIN_X = SCREEN_ORIGIN_X+CAMERA_X;
                     scale -= 10;
             }
         }
+        if (GetKeyState(VK_UP) & 0x8000)
+            CAMERA_X += 10;
 
     aP = 1 - aP;
     } while (!(GetKeyState(VK_ESCAPE) & 0x8000));
