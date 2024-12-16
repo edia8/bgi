@@ -8,17 +8,46 @@
 #include    <Windows.h>
 using namespace std;
 
+
+//butoane
+
+struct buton {
+    int x1, y1,btnWIDTH,btnHEIGHT;
+    string nume;
+    bool isHover;
+
+    buton(int x1, int y1,int btnWIDTH,int btnHEIGHT, string nume) : x1(x1), y1(y1),btnWIDTH(btnWIDTH),btnHEIGHT(btnHEIGHT), nume(nume), isHover(false) {}
+
+    void Deseneaza() {
+        setfillstyle(SOLID_FILL, isHover ? DARKGRAY : LIGHTGRAY);
+        bar(x1, y1, x1+btnWIDTH, y1+btnHEIGHT);
+        setbkcolor(isHover ? DARKGRAY : LIGHTGRAY);
+        setcolor(BLACK);
+        outtextxy((x1 + (x1 + btnWIDTH)) / 2 - 20, (y1 + (y1 + btnHEIGHT)) / 2 - 10, const_cast<char*>(nume.c_str()));
+    }
+
+    bool MousePeButon(int mx, int my) {
+        return mx >= x1 && mx <= (x1 + btnWIDTH) && my >= y1 && my <= (y1 + btnHEIGHT);
+    }
+};
+
+vector<buton> Butoane;
+
 // Dimensiunile ecranului grafic
 int WIDTH = GetSystemMetrics(SM_CXSCREEN);
 int HEIGHT = GetSystemMetrics(SM_CYSCREEN);
 int ORIGIN_X = WIDTH / 2;
 int ORIGIN_Y = HEIGHT / 2;
+int MENU_HEIGHT = 60;
 int CAMERA_X = 0;
 int CAMERA_Y = 0;
 bool FULSCREEN = 1;
 bool isDarkModeOn = 0;
 
 int SCALE = 50;
+
+
+
 
 //computarea de functii
 
@@ -163,6 +192,38 @@ pair<double, double> ConversieCoord(int screenX, int screenY) {
     return { cartesianX, cartesianY };
 }
 
+void Zoom(bool zoomIn)
+{
+    int scaleVechi = SCALE;
+    if (zoomIn) {
+        if (SCALE >= 200 && SCALE <= 500) {
+            SCALE += 25;
+            delay(10);
+        }
+        else {
+            SCALE += 10;
+            delay(10);
+        }
+    }
+    else {
+        if (SCALE > 25) {
+            if (SCALE >= 200) {
+                SCALE -= 25;
+            }
+            else {
+                SCALE -= 10;
+            }
+        }
+    }
+
+    double cartesianX = -CAMERA_X / static_cast<double>(scaleVechi);
+    double cartesianY = CAMERA_Y / static_cast<double>(scaleVechi);
+
+    CAMERA_X = -cartesianX * SCALE;
+    CAMERA_Y = cartesianY * SCALE;
+
+}
+
 void drawAxis(int culoare) {
     //axele de coordonate
     setfillstyle(SOLID_FILL, culoare);
@@ -183,6 +244,64 @@ void drawAxis(int culoare) {
         bar(ORIGIN_X + CAMERA_X  - 5,y, ORIGIN_X + CAMERA_X + 5, y+1);
     }
 
+}
+void initMeniu() {
+    int btnHEIGHT = 20;
+    int startX = 10, gap = 1; 
+
+    Butoane.push_back(buton(startX, 5, 40, btnHEIGHT, "+"));  // Zoom In
+    startX += 40 + gap;
+    Butoane.push_back(buton(startX, 5, 40, btnHEIGHT, "-"));  // Zoom Out
+    startX += 40 + gap;
+    Butoane.push_back(buton(startX, 5, 80, btnHEIGHT, "Domeniu")); // Modifica domeniul
+    startX += 80 + gap;
+    Butoane.push_back(buton(startX, 5, 80, btnHEIGHT, "Functie")); // Introdu functii
+    startX += 80 + gap;
+    Butoane.push_back(buton(startX, 5, 80, btnHEIGHT, "Acolada")); // Functie cu acolada
+}
+
+void deseneazaMeinu() {
+    setfillstyle(SOLID_FILL, DARKGRAY);
+    bar(0, 0, WIDTH, MENU_HEIGHT);
+    for (int i = 0; i < Butoane.size(); i++) {
+        Butoane[i].Deseneaza();
+    }
+}
+
+void handleMouse() {
+    int mx = mousex();
+    int my = mousey();
+
+    for (auto& btn : Butoane) {
+        btn.isHover= btn.MousePeButon(mx, my); // Actualizează hover
+
+        if (btn.isHover && ismouseclick(WM_LBUTTONDOWN)) {
+            clearmouseclick(WM_LBUTTONDOWN);
+
+            if (btn.nume == "+") {
+                Zoom(1);
+            }
+            else if (btn.nume == "-") {
+                Zoom(0);
+            }
+            else if (btn.nume == "Domeniu") {
+                double xMin, xMax;
+                cout << "Introdu domeniul (xMin xMax): ";
+                cin >> xMin >> xMax;
+                cout << "Domeniu setat [" << xMin << ", " << xMax << "]" << endl;
+            }
+            else if (btn.nume == "Functie") {
+                string func;
+                cout << "Introdu functia (ex: sin(x), x^2): ";
+                cin >> func;
+                cout << "Functie introdusa: " << func << endl;
+            }
+            else if (btn.nume == "Acolada") {
+                cout << "Functie cu acolada selectata." << endl;
+            }
+        }
+    }
+    setbkcolor(15);
 }
 
 void drawfunction(vector<string> postfix) //adaugare parametru de culoare pt a desena mai multe functii simultan
@@ -211,6 +330,18 @@ void drawfunction(vector<string> postfix) //adaugare parametru de culoare pt a d
     }
 }
 
+
+void fereastra()
+{
+        WIDTH = GetSystemMetrics(SM_CXSCREEN);
+        HEIGHT = GetSystemMetrics(SM_CYSCREEN);
+        //closegraph();
+        ORIGIN_Y = HEIGHT / 2;
+        ORIGIN_X = WIDTH / 2;
+        initwindow(WIDTH, HEIGHT, "", -3, -3);
+        delay(100);
+}
+
 void DarkMode(int &fundal, int &axe)
 {
     if (isDarkModeOn) {
@@ -223,86 +354,66 @@ void DarkMode(int &fundal, int &axe)
     }
 }
 
-void fereastra()
-{
-    if (FULSCREEN) {
-        WIDTH = GetSystemMetrics(SM_CXSCREEN);
-        HEIGHT = GetSystemMetrics(SM_CYSCREEN);
-        closegraph();
-        ORIGIN_Y = HEIGHT / 2;
-        ORIGIN_X = WIDTH / 2;
-        initwindow(WIDTH, HEIGHT, "", -3, -3);
-        delay(100);
-    }else {
-        WIDTH = 1600;HEIGHT = 1200;
-        closegraph();
-        ORIGIN_Y = HEIGHT / 2;
-        ORIGIN_X = WIDTH / 2;
-        initwindow(WIDTH, HEIGHT, ".");
-        delay(100);
-    }
-
-}
-
 bool scroll(int up_or_down)
 {
     GET_WHEEL_DELTA_WPARAM(up_or_down);
     return up_or_down;
 }
 
+/*bool EroriPostFixata(vector<string> postfix)
+{
+    for (auto i : postfix) {
+        //verificare daca fiecare token din postfixata are o semnificatie
+    }
+}*/
+
+
 int main() {
-int aP = 0;
-    //int gd = DETECT, gm=DETECT;
-string expression;
-cout << "Introdu expresia matematica: ";
-getline(cin, expression);
-cout << expression;
-vector<string> postfix = infixToPostfix(expression);
+    int aP = 0;
+        //int gd = DETECT, gm=DETECT;
+    string expression;
+    cout << "Introdu expresia matematica: ";
+    getline(cin, expression);
+    //cout << expression;
+    vector<string> postfix = infixToPostfix(expression);
+    /*
+        //verificare expresie postfixata
+    for (auto i : postfix)
+        cout << i << ' ';
+    */
 
-for (auto i : postfix)
-    cout << i << " ";
-
-
-
+    initMeniu();
+    
     int culoareFundal, culoareAxe;
     DarkMode(culoareFundal, culoareAxe);
     fereastra();
     drawAxis(culoareAxe);
-   // drawfunction2(postfix);
+    deseneazaMeinu();
+    //fereastra();
     do {
         //trecerea ferestrei din windowed in fulscreen
-        if (GetKeyState(VK_F11) & 0x8000) {
-            FULSCREEN = !FULSCREEN;
-            fereastra();
-        }
         setactivepage(aP);
 		setvisualpage(1 - aP);
         cleardevice();
-//        if (ismouseclick(WM_RBUTTONDOWN))
-//            isDarkModeOn = !isDarkModeOn;
+      
+
+        
         DarkMode(culoareFundal, culoareAxe);
         setbkcolor(culoareFundal);
 		drawAxis(culoareAxe);
         drawfunction(postfix);
+        deseneazaMeinu();
+        handleMouse();
+
+        //butoanele meniului
+
+
+
         if (GetKeyState(VK_OEM_PLUS) & 0x8000) {
-            if (SCALE >= 200 && SCALE <= 500) {
-                SCALE += 25;
-                delay(10);
-            }
-            else {
-                SCALE += 10;
-                delay(10);
-            }
+            Zoom(1);
         }
         else if (GetKeyState(VK_OEM_MINUS) & 0x8000) {
-            if (SCALE >25) {
-                if (SCALE >= 200) {
-                    SCALE -= 25;
-                }
-                else {
-                    SCALE -= 10;
-                }
-            }
+            Zoom(0);
         }
 
         if (ismouseclick(WM_LBUTTONDOWN)) {
@@ -319,7 +430,9 @@ for (auto i : postfix)
             // Afișează coordonatele în consolă
             cout << "Coordonate carteziene: (" << coord.first << ", " << coord.second << ")" << endl;
         }
-        int CameraMove = 2*SCALE;
+
+
+        int CameraMove = 1000/SCALE;
         if (GetKeyState(VK_UP) & 0x8000)
             CAMERA_Y += CameraMove;
         if (GetKeyState(VK_DOWN) & 0x8000)
@@ -333,16 +446,10 @@ for (auto i : postfix)
             CAMERA_Y = 0;
             SCALE = 50;
         }
-        if (GetKeyState(VK_F7) & 0x8000) {
-            int x, y;
-            getmouseclick(WM_LBUTTONDOWN, x, y);
-            double X = (double)x;
-            cout << (X - WIDTH / 2) / WIDTH * (WIDTH / SCALE) << '\n';
-        }
 
     aP = 1 - aP;
     } while (!(GetKeyState(VK_ESCAPE) & 0x8000));
-
+   
     closegraph();
     return 0;
 }
